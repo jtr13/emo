@@ -1,38 +1,15 @@
+#' @importFrom glue collapse evaluate
+emoji_transformer <- function(code, envir) {
+  has_dollar <- grepl("[*]$", code)
+  if( has_dollar ) code <- sub("[*]$", "", code)
+  res <- evaluate( glue( "emo::jitsu_set({code})" ), envir )
 
-#' @importFrom stringr str_locate_all str_extract_all str_replace str_sub<-
-#' @importFrom purrr map_chr
-ji_glue_one <- function(txt){
-  rx <- ":([~a-zA-Z0-9_,]*):([*]?)"
-  pos <- str_locate_all(txt, rx)[[1]]
-
-  chunks <- str_extract_all(txt, rx)[[1]]
-  emojis <- map_chr( chunks, ~{
-    set   <- str_detect( str_replace( ., rx, "\\2" ), "[*]" )
-    proxy <- str_replace(., rx, "\\1")
-
-    rx    <- str_detect(proxy, "[~,]")
-
-    tryCatch({
-      if( set ){
-        paste( eval( parse( text = paste( "ji_set(", proxy, ")" ) )), collapse = "" )
-      } else if( rx ){
-        eval( parse( text = paste( "jitsu(", proxy, ")" ) ))
-      } else {
-        find_emoji( proxy )
-      }
-    }, error = function(e){
-      .
-    })
-
-  })
-
-  for( i in rev(seq_along(emojis)) ){
-    str_sub(txt, pos[i,1], pos[i,2]) <- emojis[i]
+  if (has_dollar) {
+    collapse(res)
+  } else {
+    sample(res, 1)
   }
-
-  txt
 }
-
 
 #' emoji glue
 #'
@@ -53,13 +30,16 @@ ji_glue_one <- function(txt){
 #'
 #'   # and get sets of emojis instead of just one by
 #'   # using the wildcard suffix
-#'   ji_glue( ":monkey,face:* love to :celebrate:" )
+#'   ji_glue( ":monkey,face: love to :party:" )
 #'
 #' }
+#' @importFrom glue glue
+#' @importFrom purrr map_chr
 #' @export
 ji_glue <- function(txt){
+  .envir <- parent.frame()
   structure(
-    map_chr(txt, ji_glue_one),
+    map_chr(txt, ~glue(., .open = ":", .close = ":", .envir = .envir, .transformer = emoji_transformer)),
     class = "emoji"
   )
 }
